@@ -1,0 +1,85 @@
+# preview-show-vars: state, approved
+aal "github" {
+    language "python" {
+        import os
+        from enum import Enum
+
+        #class PRState(Enum):
+        #    None    = 0
+        #    Draft   = 1
+        #    Open    = 2
+        #    Closed  = 3
+        #    Merged  = 4
+
+    }
+
+    variables { state, approved }
+    initial_state {
+        state = 0#PRState.None
+        approved = False
+    }
+    adapter_init {
+        log("Start")
+    }
+    adapter_exit {
+        if verdict == "pass":
+           log("PASS")
+        log("cleaning up ")
+    }
+    input "Open PR" {
+        guard()   { return state == 0 } #PRState.None
+        adapter() { log("Create PR") }
+        body()    { state = 2 } # PRState.Open
+    }
+    input "Merge PR" {
+        guard()   { return ((state == 2) and approved) } #PRState.Open }
+        adapter() { log("Merge PR") }
+        body()    { state = 4 } #PRState.Merged }
+    }
+    input "Close PR" {
+        guard()   { return state == 2 } #PRState.Open
+        adapter() { log("Close PR") }
+        body()    { state = 3 } #PRState.Closed }
+    }
+    input "Change PR to Draft" {
+        guard()   { return state == 2 } #PRState.Open }
+        adapter() { log("Change PR to Draft") }
+        body()    { state = 1 } #PRState.Draft }
+    }
+    input "Change PR to Open" {
+        guard()   { return state == 1 } #PRState.Draft }
+        adapter() { log("Change PR to Open") }
+        body()    { state = 2 } # PRState.Open }
+    }
+    input "Approve" {
+        guard()   { return state == 2 } #PRState.Open }
+        adapter() { log("Approve") }
+        body()    { approved = True }
+    }
+    input "Change request" {
+        guard()   { return state == 2 } #PRState.Open }
+        adapter() { log("Change request") }
+        body()    { approved = False }
+    }
+
+    tag "Open" {
+        guard()   { return state == 2 } #PRState.Open }
+        adapter() {  } # code here that checks github has open PR
+    }
+    tag "Ready to merge" {
+        guard()   { return (approved and (state == 2)) } #PRState.Open }
+        adapter() {  } # code here that checks github has open PR
+    }
+    tag "Closed" {
+        guard()   { return state == 3 } #PRState.Closed }
+        adapter() {  } # code here that checks github has open PR
+    }
+    tag "Merged" {
+        guard()   { return state == 4 } # PRState.Merged }
+        adapter() {  } # code here that checks github has open PR
+    }
+    tag "Draft" {
+        guard()   { return state == 1 } #PRState.Draft }
+        adapter() {  } # code here that checks github has open PR
+    }
+}
