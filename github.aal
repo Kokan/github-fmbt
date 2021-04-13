@@ -2,6 +2,7 @@
 aal "github" {
     language "python" {
         import os
+        from git_adapter import *
         from enum import Enum
 
         #class PRState(Enum):
@@ -13,22 +14,29 @@ aal "github" {
 
     }
 
-    variables { state, approved }
+    variables { state, approved, prid, driver }
     initial_state {
         state = 0#PRState.None
         approved = False
     }
     adapter_init {
         log("Start")
+        driver=createDriver()
+        prid = get_next_pr_id("Kokan/github-fmbt")
+        log("PRID: {}".format(prid))
     }
     adapter_exit {
         if verdict == "pass":
            log("PASS")
         log("cleaning up ")
+        driver.close()
     }
     input "Open PR" {
         guard()   { return state == 0 } #PRState.None
-        adapter() { log("Create PR") }
+        adapter() {
+                    prid = OpenNewPR(driver, "Kokan/github-fmbt")
+                    log("Create PR {}".format(prid))
+                  }
         body()    { state = 2 } # PRState.Open
     }
     input "Merge PR" {
@@ -38,17 +46,26 @@ aal "github" {
     }
     input "Close PR" {
         guard()   { return state == 2 } #PRState.Open
-        adapter() { log("Close PR") }
+        adapter() {
+                    log("Close PR")
+                    ClosePR(driver, "Kokan/github-fmbt", prid)
+                  }
         body()    { state = 3 } #PRState.Closed }
     }
     input "Change PR to Draft" {
         guard()   { return state == 2 } #PRState.Open }
-        adapter() { log("Change PR to Draft") }
+        adapter() {
+                    log("Change PR to Draft")
+                    Open2Draft(driver, "Kokan/github-fmbt", prid)
+                  }
         body()    { state = 1 } #PRState.Draft }
     }
     input "Change PR to Open" {
         guard()   { return state == 1 } #PRState.Draft }
-        adapter() { log("Change PR to Open") }
+        adapter() {
+                    log("Change PR to Open")
+                    Draft2Open(driver, "Kokan/github-fmbt", prid)
+                  }
         body()    { state = 2 } # PRState.Open }
     }
     input "Approve" {
