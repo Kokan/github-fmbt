@@ -13,6 +13,8 @@ from json import loads
 
 import git
 
+import sh
+
 def get_next_pr_id(project):
     API = "https://api.github.com/repos/{}/issues?state=all&sort=created&direction=desc".format(project)
 
@@ -27,23 +29,20 @@ def createDriver():
     options = Options()
     options.add_argument("user-data-dir=/tmp/github-fmbt")
     return webdriver.Chrome(chrome_options=options)
-
-def github_open(driver, project):
-    driver.get("https://github.com/" + project)
-
-    pr = driver.find_element_by_xpath('//*[@id="js-repo-pjax-container"]/div[1]/nav/ul/li[3]/a/span[1]')
-    pr.click()
-
-    time.sleep(2)
+    return None
 
 def github_new_pr(driver, project, branch_name):
-    driver.get("https://github.com/{}/pull/new/{}".format(project, branch_name))
+    sh.gh.pr.create("--fill", "--head", branch_name, _env=get_env("github-fmbt.token"))
 
-    time.sleep(2)
+def get_env(token_file="kokan.token"):
+    env = os.environ.copy()
+    env['GH_TOKEN'] = get_token(token_file)
+    return env
 
-    newpr = driver.find_element_by_xpath('/html/body/div[4]/div/main/div[2]/div/div[4]/form/div/div[1]/div/div[2]/div/div[2]/div')
-    newpr.click()
-
+def get_token(path):
+    with open(path) as f:
+        gh_token = f.read()
+    return gh_token.strip()
 
 def touch(filepath):
     open(filepath, 'wb').close()
@@ -64,7 +63,7 @@ def git_new_branch(prid):
 
     # stage the changed file and commit it
     gitrepo.index.add([filename])
-    gitrepo.index.commit("Adding "+filename+ "to repo")
+    gitrepo.index.commit("Adding " + filename + "to repo")
 
     # push the staged commits
     push_res = origin.push(branch_name)[0]
@@ -81,7 +80,7 @@ def ClickOnXPath(driver, project, ID, xpath):
     elem.click()
 
 def ClosePR(driver, project, ID):
-    ClickOnXPath(driver, project, ID, '/html/body/div[4]/div/main/div[2]/div/div/div[2]/div[3]/div/div[1]/div/div[2]/div[2]/div/div[2]/form/div/div/div/div[1]/button')
+    sh.gh.pr.close(ID, _env=get_env())
 
 def Open2Draft(driver, project, ID):
     ClickOnXPath(driver, project, ID, '/html/body/div[4]/div/main/div[2]/div/div/div[2]/div[3]/div/div[2]/div/div[1]/form/div/details')
@@ -90,23 +89,34 @@ def Open2Draft(driver, project, ID):
     for_sure.click()
     time.sleep(1)
 
+def MergePR(driver, project, ID):
+    sh.gh.pr.merge(ID, '--merge', _env=get_env())
+
+def Approve(driver, project, ID):
+    sh.gh.pr.review(ID, '--approve', '--body', 'ok', _env=get_env())
+
+def ChangeRequest(driver, project, ID):
+    sh.gh.pr.review(ID, '--request-changes', '--body', 'nok', _env=get_env())
+
+def ReopenPR(driver, project, ID):
+    sh.gh.pr.reopen(ID, _env=get_env())
+
 def Draft2Open(driver, project, ID):
     ClickOnXPath(driver, project, ID, '/html/body/div[4]/div/main/div[2]/div/div/div[2]/div[3]/div/div[1]/div/div[2]/div[1]/div[1]/div/div/div/div/div[1]/form/button')
     time.sleep(1)
 
 def OpenNewPR(driver, project):
     prid = get_next_pr_id(project)
-    branch_name=git_new_branch(prid)
-    github_open(driver, project)
+    branch_name = git_new_branch(prid)
     github_new_pr(driver, project, branch_name)
     return prid
 
-#driver=createDriver()
-#ID=OpenNewPR(driver, "Kokan/github-fmbt")
-#Open2Draft(driver, "Kokan/github-fmbt", ID)
-#time.sleep(1)
-#Draft2Open(driver, "Kokan/github-fmbt", ID)
-#ClosePR(driver, "Kokan/github-fmbt", ID)
-#driver.close()
+# driver=createDriver()
+# ID=OpenNewPR(driver, "Kokan/github-fmbt")
+# Open2Draft(driver, "Kokan/github-fmbt", ID)
+# time.sleep(1)
+# Draft2Open(driver, "Kokan/github-fmbt", ID)
+# ClosePR(driver, "Kokan/github-fmbt", ID)
+# driver.close()
 
 

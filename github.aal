@@ -41,7 +41,10 @@ aal "github" {
     }
     input "Merge PR" {
         guard()   { return ((state == 2) and approved) } #PRState.Open }
-        adapter() { log("Merge PR") }
+        adapter() {
+                    log("Merge PR")
+                    MergePR(driver, "Kokan/github-fmbt", prid)
+                  }
         body()    { state = 4 } #PRState.Merged }
     }
     input "Close PR" {
@@ -51,6 +54,14 @@ aal "github" {
                     ClosePR(driver, "Kokan/github-fmbt", prid)
                   }
         body()    { state = 3 } #PRState.Closed }
+    }
+    input "Reopen PR" {
+        guard()   { return state == 3 } #PRState.Closed
+        adapter() {
+                    log("Reopen PR")
+                    ReopenPR(driver, "Kokan/github-fmbt", prid)
+                  }
+        body()    { state = 2 } #PRState.Open }
     }
     input "Change PR to Draft" {
         guard()   { return state == 2 } #PRState.Open }
@@ -70,12 +81,18 @@ aal "github" {
     }
     input "Approve" {
         guard()   { return state == 2 } #PRState.Open }
-        adapter() { log("Approve") }
+        adapter() {
+                    log("Approve")
+                    Approve(driver, "Kokan/github-fmbt", prid)
+                  }
         body()    { approved = True }
     }
     input "Change request" {
         guard()   { return state == 2 } #PRState.Open }
-        adapter() { log("Change request") }
+        adapter() {
+                    log("Change request")
+                    ChangeRequest(driver, "Kokan/github-fmbt", prid)
+                  }
         body()    { approved = False }
     }
 
