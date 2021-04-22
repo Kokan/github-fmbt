@@ -22,7 +22,7 @@ aal "github" {
     adapter_init {
         log("Start")
         driver=createDriver()
-        prid = get_next_pr_id("Kokan/github-fmbt")
+        prid = 0 # get_next_pr_id("Kokan/github-fmbt")
         log("PRID: {}".format(prid))
     }
     adapter_exit {
@@ -32,12 +32,15 @@ aal "github" {
         driver.close()
     }
     input "Open PR" {
-        guard()   { return state == 0 } #PRState.None
+        guard()   { return (state == 0) or (state == 3) or (state == 4) } #PRState.None
         adapter() {
                     prid = OpenNewPR(driver, "Kokan/github-fmbt")
                     log("Create PR {}".format(prid))
                   }
-        body()    { state = 2 } # PRState.Open
+        body()    {
+                    state = 2# PRState.Open
+                    approved = False
+                  }
     }
     input "Merge PR" {
         guard()   { return ((state == 2) and approved) } #PRState.Open }
@@ -98,22 +101,25 @@ aal "github" {
 
     tag "Open" {
         guard()   { return state == 2 } #PRState.Open }
-        adapter() {  } # code here that checks github has open PR
+        adapter() { assert GetPRStatus(driver, "Kokan/github-fmbt", prid) == 2  } # code here that checks github has open PR
     }
     tag "Ready to merge" {
         guard()   { return (approved and (state == 2)) } #PRState.Open }
-        adapter() {  } # code here that checks github has open PR
+        adapter() { assert isReady2Merge(driver, "Kokan/github-fmbt", prid)  } # code here that checks github has open PR
     }
     tag "Closed" {
         guard()   { return state == 3 } #PRState.Closed }
-        adapter() {  } # code here that checks github has open PR
+        adapter() { assert GetPRStatus(driver, "Kokan/github-fmbt", prid) == 3  } # code here that checks github has open PR
     }
     tag "Merged" {
         guard()   { return state == 4 } # PRState.Merged }
-        adapter() {  } # code here that checks github has open PR
+        adapter() { 
+                    log(GetPRStatus(driver, "Kokan/github-fmbt", prid))
+                    assert GetPRStatus(driver, "Kokan/github-fmbt", prid) == 4
+                  } # code here that checks github has open PR
     }
     tag "Draft" {
         guard()   { return state == 1 } #PRState.Draft }
-        adapter() {  } # code here that checks github has open PR
+        adapter() { assert GetPRStatus(driver, "Kokan/github-fmbt", prid) == 1  } # code here that checks github has open PR
     }
 }
