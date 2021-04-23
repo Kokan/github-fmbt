@@ -61,7 +61,7 @@ def touch(filepath):
 
 def git_new_branch(prid):
     branch_name = "pr{}".format(prid)
-    filename = "pr{}.txt".format(prid)
+    filename = "tmp/pr{}.txt".format(prid)
     gitrepo = git.Repo(os.getcwd())
 
     origin = gitrepo.remote(name="origin")
