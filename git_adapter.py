@@ -21,12 +21,6 @@ def get_next_pr_id_gen(project):
         yield prid
         prid += 1
 
-prid_generator = get_next_pr_id_gen("Kokan/github-fmbt")
-
-def get_next_pr_id(project):
-    return next(prid_generator)
-
-
 def get_free_pr_slot(project):
     API = "https://api.github.com/repos/{}/issues?state=all&sort=created&direction=desc".format(project)
 
@@ -38,10 +32,7 @@ def get_free_pr_slot(project):
     return last_id + 1
 
 def createDriver():
-    options = Options()
-    options.add_argument("user-data-dir=/tmp/github-fmbt")
-    return webdriver.Chrome(chrome_options=options)
-    return None
+    return GithubPR("Kokan/github-fmbt")
 
 def github_new_pr(driver, project, branch_name):
     sh.gh.pr.create("--fill", "--head", branch_name, _env=get_env("github-fmbt.token"))
@@ -85,126 +76,92 @@ def git_new_branch(prid):
 
     return branch_name
 
-def ClickOnXPath(driver, project, ID, xpath):
-    driver.get("https://github.com/Kokan/github-fmbt/pull/{}".format(ID))
-    elem = driver.find_element_by_xpath(xpath)
+class GithubPR:
+    def __init__(self, project):
+        self.__createDriver()
+        self.project = project
+        self.prid = None
+        self.prid_generator = get_next_pr_id_gen(project)
 
-    elem.click()
+    def __del__(self):
+        self.driver.close()
 
-def ClickOnText(driver, project, ID, text):
-    ClickOnXPath(driver, project, ID, "//*[text() = '{}']".format(text))
+    def __ClickOnXPath(self, xpath):
+        self.driver.get("https://github.com/{}/pull/{}".format(self.project, self.prid))
+        elem = self.driver.find_element_by_xpath(xpath)
 
-def ClosePR(driver, project, ID):
-    sh.gh.pr.close(ID, _env=get_env())
+        elem.click()
 
-def Open2Draft(driver, project, ID):
-    ClickOnText(driver, project, ID, "Convert to draft")
-    for_sure = driver.find_element_by_xpath("//*[contains(@class, 'js-convert-to-draft')]")
+    def __ClickOnText(self, text):
+        self.__ClickOnXPath("//*[text() = '{}']".format(text))
 
-    for_sure.click()
-    time.sleep(1)
+    def __get_next_pr_id(self):
+        return next(self.prid_generator)
 
-def MergePR(driver, project, ID):
-    sh.gh.pr.merge(ID, '--merge', _env=get_env())
+    def OpenNewPR(self):
+        self.prid = self.__get_next_pr_id()
+        branch_name = git_new_branch(self.prid)
+        github_new_pr(self.driver, self.project, branch_name)
+        return self.prid
 
-def Approve(driver, project, ID):
-    sh.gh.pr.review(ID, '--approve', '--body', 'ok', _env=get_env())
+    def ClosePR(self):
+        sh.gh.pr.close(self.prid, _env=get_env())
 
-def ChangeRequest(driver, project, ID):
-    sh.gh.pr.review(ID, '--request-changes', '--body', 'nok', _env=get_env())
+    def Open2Draft(self):
+        self.__ClickOnText("Convert to draft")
+        for_sure = self.driver.find_element_by_xpath("//*[contains(@class, 'js-convert-to-draft')]")
 
-def ReopenPR(driver, project, ID):
-    sh.gh.pr.reopen(ID, _env=get_env())
+        for_sure.click()
+        time.sleep(1)
 
-def Draft2Open(driver, project, ID):
-    ClickOnText(driver, project, ID, 'Ready for review')
-    time.sleep(1)
+    def MergePR(self):
+        sh.gh.pr.merge(self.prid, '--merge', _env=get_env())
 
-def OpenNewPR(driver, project):
-    prid = get_next_pr_id(project)
-    branch_name = git_new_branch(prid)
-    github_new_pr(driver, project, branch_name)
-    return prid
+    def Approve(self):
+        sh.gh.pr.review(self.prid, '--approve', '--body', 'ok', _env=get_env())
 
-def hasText(driver, project, ID, text):
-    driver.get("https://github.com/Kokan/github-fmbt/pull/{}".format(ID))
-    return (text in driver.page_source)
+    def ChangeRequest(self):
+        sh.gh.pr.review(self.prid, '--request-changes', '--body', 'nok', _env=get_env())
 
-"""
-class PRState(Enum):
-    None    = 0
-    Draft   = 1
-    Open    = 2
-    Closed  = 3
-    Merged  = 4
-"""
-def GetPRStatus(driver, project, ID):
-    #driver.get("https://github.com/Kokan/github-fmbt/pull/70")
-    isDraft=hasText(driver, project, ID, "Draft pull requests")
-    isClosed=hasText(driver, project, ID, "Closed with unmerged commits")
-    isOpen=hasText(driver, project, ID, "Close pull request")
-    isMerged=hasText(driver, project, ID, "Merged")
+    def ReopenPR(self):
+        sh.gh.pr.reopen(self.prid, _env=get_env())
 
-    #print("merge blocked: {}".format(mergeBlocked))
-    #print("changes requested: {}".format(changeRequest))
-    #print("changes approved: {}".format(changeApproved))
-    #print("draft?: {}".format(isDraft))
+    def Draft2Open(self):
+        self.__ClickOnText('Ready for review')
+        time.sleep(1)
 
-    if isDraft:
-        return 1 #Draft
+    def __hasText(self, text):
+        self.driver.get("https://github.com/{}/pull/{}".format(self.project, self.prid))
+        return text in self.driver.page_source
 
-    if isClosed:
-        return 3 #Closed
+    def GetPRStatus(self):
+        isDraft=self.__hasText("Draft pull requests")
+        if isDraft:
+            return 1 #Draft
 
-    if isOpen:
-        return 2 #Open
+        isClosed=self.__hasText("Closed with unmerged commits")
+        if isClosed:
+            return 3 #Closed
 
-    if isMerged:
-        return 4 #Merged
+        isOpen=self.__hasText("Close pull request")
+        if isOpen:
+            return 2 #Open
 
-    return 0 #None
+        isMerged=self.__hasText("Merged")
+        if isMerged:
+            return 4 #Merged
 
-def isReady2Merge(driver, project, ID):
-    mergeBlocked=hasText(driver, project, ID, "Merging is blocked")
-    changeRequest=hasText(driver, project, ID, "Changes requested")
-    changeApproved=hasText(driver, project, ID, "Changes approved")
+        return 0 #None
 
-    return not mergeBlocked and not changeRequest and changeApproved
-   
+    def isReady2Merge(self):
+        mergeBlocked=self.__hasText("Merging is blocked")
+        changeRequest=self.__hasText("Changes requested")
+        changeApproved=self.__hasText("Changes approved")
 
-#def GetPRState(project):
-#    print(sh.gh.pr.view("--json", "state", branch_name, _env=get_env()))
+        return not mergeBlocked and not changeRequest and changeApproved
 
-#driver=createDriver()
-#print(get_next_pr_id("Kokan/github-fmbt"))
-#ID=OpenNewPR(driver, "Kokan/github-fmbt")
-#print(get_next_pr_id("Kokan/github-fmbt"))
-# Open2Draft(driver, "Kokan/github-fmbt", ID)
-# time.sleep(1)
-# Draft2Open(driver, "Kokan/github-fmbt", ID)
-#print(get_next_pr_id("Kokan/github-fmbt"))
-#ClosePR(driver, "Kokan/github-fmbt", ID)
-#print(get_next_pr_id("Kokan/github-fmbt"))
-#driver.close()
-
-#print(get_next_pr_id("Kokan/github-fmbt"));
-#print(get_next_pr_id("Kokan/github-fmbt"));
-
-#driver=createDriver()
-#
-#ClickOnText(driver, "Kokan/github-fmbt", 'pr34', 'Convert to draft')
-#time.sleep(1)
-# ClickOnText(driver, "Kokan/github-fmbt", 'pr34', 'Convert to draft')
-# [200~/html/body/div[4]/div/main/div[2]/div/div/div[2]/div[3]/div/div[2]/div/div[1]/form/div/details/details-dialog/div[3]/button
-# //*[contains(@class, 'js-convert-to-draft')] 
-#elem = driver.find_element_by_xpath("//*[contains(@class, 'js-convert-to-draft')]")
-#elem.click()
-
-#driver.get("https://github.com/Kokan/github-fmbt/pull/70")
-#print("merge blocked: {}".format("Merging is blocked" in driver.page_source))
-#print("changes requested: {}".format("Changes requested" in driver.page_source))
-#print("changes approved: {}".format("Changes approved" in driver.page_source))
-#print("draft?: {}".format("Draft pull requests" in driver.page_source))
-#
-#driver.close()
+    def __createDriver(self):
+        options = Options()
+        options.add_argument("user-data-dir=/tmp/github-fmbt")
+        self.driver = webdriver.Chrome(chrome_options=options)
 
