@@ -14,25 +14,24 @@ aal "github" {
 
     }
 
-    variables { state, approved, prid, driver }
+    variables { state, approved, SUT }
     initial_state {
         state = 0#PRState.None
         approved = False
     }
     adapter_init {
         log("Start")
-        driver=GithubPR("Kokan/github-fmbt")
+        SUT=GithubPR("Kokan/github-fmbt")
     }
     adapter_exit {
         if verdict == "pass":
            log("PASS")
         log("cleaning up ")
-        #driver.close()
     }
     input "Open PR" {
         guard()   { return (state == 0) or (state == 3) or (state == 4) } #PRState.None
         adapter() {
-                    log("Create PR {}".format(driver.OpenNewPR()))
+                    log("Create PR {}".format(SUT.OpenNewPR()))
                   }
         body()    {
                     state = 2# PRState.Open
@@ -43,7 +42,7 @@ aal "github" {
         guard()   { return ((state == 2) and approved) } #PRState.Open }
         adapter() {
                     log("Merge PR")
-                    driver.MergePR()
+                    SUT.MergePR()
                   }
         body()    { state = 4 } #PRState.Merged }
     }
@@ -51,7 +50,7 @@ aal "github" {
         guard()   { return state == 2 } #PRState.Open
         adapter() {
                     log("Close PR")
-                    driver.ClosePR()
+                    SUT.ClosePR()
                   }
         body()    { state = 3 } #PRState.Closed }
     }
@@ -59,7 +58,7 @@ aal "github" {
         guard()   { return state == 3 } #PRState.Closed
         adapter() {
                     log("Reopen PR")
-                    driver.ReopenPR()
+                    SUT.ReopenPR()
                   }
         body()    { state = 2 } #PRState.Open }
     }
@@ -67,7 +66,7 @@ aal "github" {
         guard()   { return state == 2 } #PRState.Open }
         adapter() {
                     log("Change PR to Draft")
-                    driver.Open2Draft()
+                    SUT.Open2Draft()
                   }
         body()    { state = 1 } #PRState.Draft }
     }
@@ -75,7 +74,7 @@ aal "github" {
         guard()   { return state == 1 } #PRState.Draft }
         adapter() {
                     log("Change PR to Open")
-                    driver.Draft2Open()
+                    SUT.Draft2Open()
                   }
         body()    { state = 2 } # PRState.Open }
     }
@@ -83,7 +82,7 @@ aal "github" {
         guard()   { return state == 2 } #PRState.Open }
         adapter() {
                     log("Approve")
-                    driver.Approve()
+                    SUT.Approve()
                   }
         body()    { approved = True }
     }
@@ -91,32 +90,29 @@ aal "github" {
         guard()   { return state == 2 } #PRState.Open }
         adapter() {
                     log("Change request")
-                    driver.ChangeRequest()
+                    SUT.ChangeRequest()
                   }
         body()    { approved = False }
     }
 
     tag "Open" {
         guard()   { return state == 2 } #PRState.Open }
-        adapter() { assert driver.GetPRStatus() == 2  } # code here that checks github has open PR
+        adapter() { assert SUT.GetPRStatus() == 2  } # code here that checks github has open PR
     }
     tag "Ready to merge" {
         guard()   { return (approved and (state == 2)) } #PRState.Open }
-        adapter() { assert driver.isReady2Merge()  } # code here that checks github has open PR
+        adapter() { assert SUT.isReady2Merge()  } # code here that checks github has open PR
     }
     tag "Closed" {
         guard()   { return state == 3 } #PRState.Closed }
-        adapter() { assert driver.GetPRStatus() == 3  } # code here that checks github has open PR
+        adapter() { assert SUT.GetPRStatus() == 3  } # code here that checks github has open PR
     }
     tag "Merged" {
         guard()   { return state == 4 } # PRState.Merged }
-        adapter() {
-                    log(driver.GetPRStatus())
-                    assert driver.GetPRStatus() == 4
-                  } # code here that checks github has open PR
+        adapter() { assert SUT.GetPRStatus() == 4 } # code here that checks github has open PR
     }
     tag "Draft" {
         guard()   { return state == 1 } #PRState.Draft }
-        adapter() { assert driver.GetPRStatus() == 1  } # code here that checks github has open PR
+        adapter() { assert SUT.GetPRStatus() == 1  } # code here that checks github has open PR
     }
 }
