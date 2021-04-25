@@ -2,18 +2,14 @@
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-
-import pickle
-import time
-import os
-
 from urllib2 import urlopen
 from json import loads
 
-
 import git
-
 import sh
+import time
+import os
+
 
 def get_next_pr_id_gen(project):
     prid = get_free_pr_slot(project)
@@ -30,12 +26,6 @@ def get_free_pr_slot(project):
     last_id = int(issues[0]["number"])
 
     return last_id + 1
-
-def createDriver():
-    return GithubPR("Kokan/github-fmbt")
-
-def github_new_pr(driver, project, branch_name):
-    sh.gh.pr.create("--fill", "--head", branch_name, _env=get_env("github-fmbt.token"))
 
 def get_env(token_file="kokan.token"):
     env = os.environ.copy()
@@ -76,7 +66,15 @@ def git_new_branch(prid):
 
     return branch_name
 
+class PRState:
+    NONE    = 0
+    DRAFT   = 1
+    OPEN    = 2
+    CLOSED  = 3
+    MERGED  = 4
+
 class GithubPR:
+
     def __init__(self, project):
         self.__createDriver()
         self.project = project
@@ -101,7 +99,7 @@ class GithubPR:
     def OpenNewPR(self):
         self.prid = self.__get_next_pr_id()
         branch_name = git_new_branch(self.prid)
-        github_new_pr(self.driver, self.project, branch_name)
+        sh.gh.pr.create("--fill", "--head", branch_name, _env=get_env("github-fmbt.token"))
         return self.prid
 
     def ClosePR(self):
@@ -137,21 +135,21 @@ class GithubPR:
     def GetPRStatus(self):
         isDraft=self.__hasText("Draft pull requests")
         if isDraft:
-            return 1 #Draft
+            return PRState.DRAFT
 
         isClosed=self.__hasText("Closed with unmerged commits")
         if isClosed:
-            return 3 #Closed
+            return PRState.CLOSED
 
         isOpen=self.__hasText("Close pull request")
         if isOpen:
-            return 2 #Open
+            return PRState.OPEN
 
         isMerged=self.__hasText("Merged")
         if isMerged:
-            return 4 #Merged
+            return PRState.MERGED
 
-        return 0 #None
+        return PRState.NONE
 
     def isReady2Merge(self):
         mergeBlocked=self.__hasText("Merging is blocked")

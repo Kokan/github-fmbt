@@ -3,20 +3,11 @@ aal "github" {
     language "python" {
         import os
         from git_adapter import *
-
-        #class PRState(Enum):
-        #    None    = 0
-        #    Draft   = 1
-        #    Open    = 2
-        #    Closed  = 3
-        #    Merged  = 4
-
     }
-
     variables { state, approved, SUT }
     initial_state {
-        state = 0#PRState.None
-        approved = False
+        state = PRState.NONE
+        approved = 0
     }
     adapter_init {
         log("Start")
@@ -28,90 +19,91 @@ aal "github" {
         log("cleaning up ")
     }
     input "Open new PR" {
-        guard()   { return (state == 0) or (state == 3) or (state == 4) } #PRState.None
+        guard()   { return (state in [PRState.NONE, PRState.CLOSED, PRState.MERGED]) }
         adapter() {
-                    log("Create PR {}".format(SUT.OpenNewPR()))
+                    prid = SUT.OpenNewPR()
+                    log("Create PR {}".format(p))
                   }
         body()    {
-                    state = 2# PRState.Open
-                    approved = False
+                    state = PRState.OPEN
+                    approved = 0
                   }
     }
     input "Merge PR" {
-        guard()   { return ((state == 2) and approved) } #PRState.Open }
+        guard()   { return ((state == PRState.OPEN) and (approved>0)) }
         adapter() {
                     log("Merge PR")
                     SUT.MergePR()
                   }
-        body()    { state = 4 } #PRState.Merged }
+        body()    { state = PRState.MERGED }
     }
     input "Close PR" {
-        guard()   { return state == 2 } #PRState.Open
+        guard()   { return state == PRState.OPEN }
         adapter() {
                     log("Close PR")
                     SUT.ClosePR()
                   }
-        body()    { state = 3 } #PRState.Closed }
+        body()    { state = PRState.CLOSED }
     }
     input "Reopen PR" {
-        guard()   { return state == 3 } #PRState.Closed
+        guard()   { return state == PRState.CLOSED }
         adapter() {
                     log("Reopen PR")
                     SUT.ReopenPR()
                   }
-        body()    { state = 2 } #PRState.Open }
+        body()    { state = PRState.OPEN }
     }
     input "Change PR to Draft" {
-        guard()   { return state == 2 } #PRState.Open }
+        guard()   { return state == PRState.OPEN }
         adapter() {
                     log("Change PR to Draft")
                     SUT.Open2Draft()
                   }
-        body()    { state = 1 } #PRState.Draft }
+        body()    { state = PRState.DRAFT }
     }
     input "Change PR to Open" {
-        guard()   { return state == 1 } #PRState.Draft }
+        guard()   { return state == PRState.DRAFT }
         adapter() {
                     log("Change PR to Open")
                     SUT.Draft2Open()
                   }
-        body()    { state = 2 } # PRState.Open }
+        body()    { state = PRState.OPEN }
     }
     input "Approve" {
-        guard()   { return state == 2 } #PRState.Open }
+        guard()   { return state == PRState.OPEN or state == PRState.DRAFT }
         adapter() {
                     log("Approve")
                     SUT.Approve()
                   }
-        body()    { approved = True }
+        body()    { approved = min(1,approved+1) }
     }
     input "Change request" {
-        guard()   { return state == 2 } #PRState.Open }
+        guard()   { return state == PRState.OPEN }
         adapter() {
                     log("Change request")
                     SUT.ChangeRequest()
                   }
-        body()    { approved = False }
+        body()    { approved = 0 }
     }
 
     tag "Open" {
-        guard()   { return (state == 2) and (not approved) } #PRState.Open }
-        adapter() { assert SUT.GetPRStatus() == 2  } # code here that checks github has open PR
+        guard()   { return (state == PRState.OPEN) and (0 == approved) }
+        adapter() { assert SUT.GetPRStatus() == PRState.OPEN }
     }
     tag "Ready to merge" {
-        guard()   { return (approved and (state == 2)) } #PRState.Open }
-        adapter() { assert SUT.isReady2Merge()  } # code here that checks github has open PR
+        guard()   { return ((approved>0) and (state == PRState.OPEN)) }
+        adapter() { assert SUT.isReady2Merge() }
     }
     tag "Closed" {
-        guard()   { return state == 3 } #PRState.Closed }
-        adapter() { assert SUT.GetPRStatus() == 3  } # code here that checks github has open PR
+        guard()   { return state == PRState.CLOSED }
+        adapter() { assert SUT.GetPRStatus() == PRState.CLOSED }
     }
     tag "Merged" {
-        guard()   { return state == 4 } # PRState.Merged }
-        adapter() { assert SUT.GetPRStatus() == 4 } # code here that checks github has open PR
+        guard()   { return state == PRState.MERGED }
+        adapter() { assert SUT.GetPRStatus() == PRState.MERGED }
     }
     tag "Draft" {
-        guard()   { return state == 1 } #PRState.Draft }
-        adapter() { assert SUT.GetPRStatus() == 1  } # code here that checks github has open PR
+        guard()   { return state == PRState.DRAFT }
+        adapter() { assert SUT.GetPRStatus() == PRState.DRAFT }
     }
 }
