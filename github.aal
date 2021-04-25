@@ -3,7 +3,6 @@ aal "github" {
     language "python" {
         import os
         from git_adapter import *
-        from enum import Enum
 
         #class PRState(Enum):
         #    None    = 0
@@ -28,7 +27,7 @@ aal "github" {
            log("PASS")
         log("cleaning up ")
     }
-    input "Open PR" {
+    input "Open new PR" {
         guard()   { return (state == 0) or (state == 3) or (state == 4) } #PRState.None
         adapter() {
                     log("Create PR {}".format(SUT.OpenNewPR()))
@@ -96,7 +95,7 @@ aal "github" {
     }
 
     tag "Open" {
-        guard()   { return state == 2 } #PRState.Open }
+        guard()   { return (state == 2) and (not approved) } #PRState.Open }
         adapter() { assert SUT.GetPRStatus() == 2  } # code here that checks github has open PR
     }
     tag "Ready to merge" {
