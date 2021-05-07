@@ -13,7 +13,7 @@ This document provides a description of how https://github.com/ PR (Pull Request
 
 Github describes itself as: 
 
-<blockquote>Millions of developers and companies build, ship, and maintain their software on GitHub—the largest and most advanced development platform in the world.</blockquote>
+> "Millions of developers and companies build, ship, and maintain their software on GitHub—the largest and most advanced development platform in the world."
 
 It is a platform where communities could share code, in its core using git. The git tool itself does not define any process. But many communities and tools started to advertise their own. One of them is called [github workflow](https://guides.github.com/introduction/flow/). The main purpose of these processes is to share code written independently (time, person, space, etc...). Usually there are few branches (mostly one) that is considered Truth, and everybody wants to migrate their changeset into that. Github workflow describes a process how to do it, and github itself by default provides utilities to support that. (Note: it is possible to use other workflows on github, but there are no tools to help you from github itself.)
 
@@ -165,7 +165,53 @@ Actions:
 
 The Open new PR input is only allowed when the previous PR is closed, merged or there is no PR before. The creation of new PR after close and merge is part of the model, so the test could "reset" its state and reach higher coverage. It can be omitted, in which case multiple execution is required.
 
-## 5. Test execution
+## 5. Adapter code
+
+The main interface of github is the git protocol and its web page. In addition to the web page recently github started a CLI interface development. It's second form is called **gh** as github cli. The github cli was a good candidate for the glue code between AAL and SUT, sadly the gh does not provide all the functionality which github is capable. It lacks two area, one regarding Draft PR. It cannot convert an already open PR to draft or a draft PR to an open(non draft) state. The second issue, which is really shocking, there is no good way to obtain a status of a PR, I mean if it is open, draft, there is change request etc. Due to this I started to use the web interface via selenium, that was fine. I could do anything, except Approving PR! Of course the PR approval works in github, it was just a simple conflict that if user A opens a PR, it cannot approve its own PR (which makes a tons of sense). When I changed users, it worked as expected. The blocking issue here was that simply changing the users were required, which sounds more simple than it is. In the day of 2 step authentication automating the second step usually hard (specially if your second step is a physical yubikey). At this point I made a decision using the fact that I want to test github internal state regarding the PR status, so the focus is not the web page nor the cli, those are just tool to interact. I choose to mix both of them, as for the github cli one could simply generate and use a token bypassing the 2FA, and the cli could do most of the task. Those tasks that was not possible via github cli were done via web page using selenium.
+
+```python
+def OpenNewPR(self):
+    self.prid = self.__get_next_pr_id()
+    branch_name = git_new_branch(self.prid)
+    sh.gh.pr.create("--fill", "--head",
+                    branch_name,
+                    _env=get_env("github-fmbt.token"))
+    return self.prid
+
+def ClosePR(self):
+    sh.gh.pr.close(self.prid, _env=get_env())
+
+def Open2Draft(self):
+    self.__ClickOnText("Convert to draft")
+    for_sure=self.driver.find_element_by_xpath("...")
+    for_sure.click()
+
+```
+
+The **ClosePR** is an example of github cli usage, where once could observe the `_env=get_env()` argument, which fetches the access token. The second is **Open2Draft** that uses selenium for interacting with the web page itself, where the selenium browser can be authenticated before the process and store the session for later usage. As for the **OpenNewPR**, the github cli of course used, with the different user so the limitation of approving your PR is bypassed. This part of the code also had to create some code modification on a new branch, the new branch is created based on the next PR id (github uses an incremented id for PR/issues), this ensures that even if local github repository is used the PR names are unique. Also this is a place where git command must be used to push the new branch and code.
+These methods are wrapped into a class `SUT=GithubPR("Kokan/github-fmbt"), so the `github.aal` code itself could be clean and hight level.
+
+
+```python
+...
+    input "Close PR" {
+        guard()   { return state == PRState.OPEN }
+        adapter() {
+                    log("Close PR")
+                    SUT.ClosePR()
+                  }
+        body()    { state = PRState.CLOSED }
+    }
+...
+    tag "Closed" {
+        guard()   { return state == PRState.CLOSED }
+        adapter() { assert SUT.GetPRStatus() == PRState.CLOSED }
+    }
+...
+```
+
+
+## 6. Test execution
 
 The configuration used to generate tests:
 ```ini
