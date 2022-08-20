@@ -1,0 +1,5 @@
+selenium
+GitPython
+python-shell
+sh
+

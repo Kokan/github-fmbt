@@ -1,0 +1,108 @@
+digraph g {
+	graph [bb="0,0,985.7,633"];
+	node [fontname="sans-serif",
+		label="\N",
+		shape=box
+	];
+	edge [fontname="sans-serif"];
+	S0	[fillcolor="#d0ffd0",
+		height=0.73611,
+		label=<[initial state]<br align="left"/>[approved=0]<br align="left"/>[state=0]<br align="left"/>>,
+		style=filled,
+		width=1.5694];
+	S1	[fillcolor="#90e090",
+		height=0.94444,
+		label=<[Open]<br align="left"/>[approved=0]<br align="left"/>[state=2]<br align="left"/><font color="#006000">i:Change request (3)</font><br align="left"/>>,
+		style=filled,
+		width=2.2083];
+	S0 -> S1	[color="#008000",
+		label=<<font color="#008000">i:Open new PR (1)</font>>,
+		lp="459.7,554.5",
+		];
+	S2	[fillcolor="#d0ffd0",
+		height=0.73611,
+		label=<[Closed]<br align="left"/>[approved=0]<br align="left"/>[state=3]<br align="left"/>>,
+		style=filled,
+		width=1.5694];
+	S1 -> S2	[color="#008000",
+		label=<<font color="#008000">i:Close PR (6)</font>>,
+		lp="52.197,428",
+		];
+	S3	[fillcolor="#d0ffd0",
+		height=0.73611,
+		label=<[Draft]<br align="left"/>[approved=0]<br align="left"/>[state=1]<br align="left"/>>,
+		style=filled,
+		width=1.5694];
+	S1 -> S3	[color="#008000",
+		label=<<font color="#008000">i:Change PR to Draft (5)</font>>,
+		lp="570.7,428",
+		];
+	S4	[fillcolor="#d0ffd0",
+		height=0.94444,
+		label=<[Ready to merge]<br align="left"/>[approved=1]<br align="left"/>[state=2]<br align="left"/><font color="#006000">i:Approve (4)</font><br align="left"/>>,
+		style=filled,
+		width=1.9028];
+	S1 -> S4	[color="#008000",
+		label=<<font color="#008000">i:Approve (6)</font>>,
+		lp="386.2,316.5",
+		];
+	S2 -> S1	[color="#008000",
+		label=<<font color="#008000">i:Open new PR (1)</font><br align="left"/><font color="#008000">i:Reopen PR (5)</font>>,
+		lp="184.7,428",
+		];
+	S3 -> S1	[color="#008000",
+		label=<<font color="#008000">i:Change PR to Open (2)</font>>,
+		lp="745.2,428",
+		];
+	S5	[fillcolor="#d0ffd0",
+		height=0.94444,
+		label=<[Draft]<br align="left"/>[approved=1]<br align="left"/>[state=1]<br align="left"/><font color="#006000">i:Approve (4)</font><br align="left"/>>,
+		style=filled,
+		width=1.5694];
+	S3 -> S5	[color="#008000",
+		label=<<font color="#008000">i:Approve (3)</font>>,
+		lp="693.2,316.5",
+		];
+	S4 -> S1	[color="#008000",
+		label=<<font color="#008000">i:Change request (4)</font>>,
+		lp="506.2,316.5",
+		];
+	S4 -> S5	[color="#008000",
+		label=<<font color="#008000">i:Change PR to Draft (2)</font>>,
+		lp="744.7,197.5",
+		];
+	S6	[fillcolor="#d0ffd0",
+		height=0.73611,
+		label=<[Merged]<br align="left"/>[approved=1]<br align="left"/>[state=4]<br align="left"/>>,
+		style=filled,
+		width=1.5694];
+	S4 -> S6	[color="#008000",
+		label=<<font color="#008000">i:Merge PR (3)</font>>,
+		lp="691.7,78.5",
+		];
+	S7	[fillcolor="#d0ffd0",
+		height=0.73611,
+		label=<[Closed]<br align="left"/>[approved=1]<br align="left"/>[state=3]<br align="left"/>>,
+		style=filled,
+		width=1.5694];
+	S4 -> S7	[color="#008000",
+		label=<<font color="#008000">i:Close PR (3)</font>>,
+		lp="402.2,78.5",
+		];
+	S5 -> S4	[color="#008000",
+		label=<<font color="#008000">i:Change PR to Open (5)</font>>,
+		lp="568.2,197.5",
+		];
+	S6 -> S1	[color="#008000",
+		label=<<font color="#008000">i:Open new PR (3)</font>>,
+		lp="922.7,257",
+		];
+	S7 -> S1	[color="#008000",
+		label=<<font color="#008000">i:Open new PR (2)</font>>,
+		lp="324.7,257",
+		];
+	S7 -> S4	[color="#008000",
+		label=<<font color="#008000">i:Reopen PR (1)</font>>,
+		lp="512.2,78.5",
+		];
+}
